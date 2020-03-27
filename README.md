@@ -1,2 +1,2 @@
 # KMSlider
-Control software for th slider
+Control software for the slider
