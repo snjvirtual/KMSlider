@@ -5,7 +5,6 @@
 #include <ClickEncoder.h>
 #include <TimerOne.h>
 #include <AccelStepper.h>
-#include <MultiStepper.h>
 
 
 U8GLIB_ST7920_128X64_1X u8g(23, 17, 16); // SPI Com: SCK = en = 23, MOSI = rw = 17, CS = di = 16
@@ -73,29 +72,18 @@ int pgno = 0;
 boolean justrendered;
 
 //MOTION VARIABLES
-#define S_STEP_PIN         54
-#define S_DIR_PIN          55
-#define S_ENABLE_PIN       38
-
-#define P_STEP_PIN         46
-#define P_DIR_PIN          48
-#define P_ENABLE_PIN       62
-
-#define T_STEP_PIN         36
-#define T_DIR_PIN          34
-#define T_ENABLE_PIN       30
-
-#define F_STEP_PIN         60
-#define F_DIR_PIN          61
-#define F_ENABLE_PIN       56
-int T_Speed = 5000;
-int Accel = T_Speed / 2;
+long STEP_PIN[] = {54, 46, 36, 60};
+long DIR_PIN[] = {55, 48, 34, 61};
+long EN_PIN[] = {38, 62, 30, 56};
 
 long apositions[4];
 long bpositions[4];
 long cpositions[4];
 long currentpos;
 long memory[13];
+long speeds[3];
+long accel[3]; 
+long stepper[3];
 
 int address = 0;
 
@@ -111,18 +99,28 @@ boolean pos;
 boolean moving;
 boolean aftermove;
 
-AccelStepper s_stepper(1, S_STEP_PIN, S_DIR_PIN);
-AccelStepper p_stepper(1, P_STEP_PIN, P_DIR_PIN);
-AccelStepper t_stepper(1, T_STEP_PIN, T_DIR_PIN);
-AccelStepper f_stepper(1, F_STEP_PIN, F_DIR_PIN);
-
-MultiStepper steppers;
+AccelStepper stepper[0](1, STEP_PIN[0], DIR_PIN[0]);
+AccelStepper stepper[1](1, STEP_PIN[1], DIR_PIN[1]);
+AccelStepper stepper[2](1, STEP_PIN[2], DIR_PIN[2]);
+AccelStepper stepper[3](1, STEP_PIN[3], DIR_PIN[3]);
 
 void timerIsr() {
   encoder->service();
 }
 
+void enmotors(){
+pinMode(EN_PIN[0], OUTPUT);
+  Serial.println("Slide Motor .............. ENABLED");
 
+pinMode(EN_PIN[1], OUTPUT);
+  Serial.println("Pan Motor .............. ENABLED");
+
+pinMode(EN_PIN[2], OUTPUT);
+  Serial.println("Tilt Motor .............. ENABLED");
+
+pinMode(EN_PIN[3], OUTPUT);
+  Serial.println("Focus Motor .............. ENABLED");
+}
 
 void setup() {
   Serial.begin(9600);
@@ -144,30 +142,7 @@ void setup() {
   Serial.println("Display Setup .............. PASS");
   
 //___________SETUP MOTORS_____________
-s_stepper.setMaxSpeed(T_Speed); 
-s_stepper.setAcceleration(Accel);
-pinMode(S_ENABLE_PIN, OUTPUT);
-  Serial.println("Slide Motor .............. ENABLED");
-
-p_stepper.setMaxSpeed(T_Speed); 
-p_stepper.setAcceleration(Accel);
-pinMode(P_ENABLE_PIN, OUTPUT);
-  Serial.println("Pan Motor .............. ENABLED");
-
-t_stepper.setMaxSpeed(T_Speed); 
-t_stepper.setAcceleration(Accel);
-pinMode(T_ENABLE_PIN, OUTPUT);
-  Serial.println("Tilt Motor .............. ENABLED");
-
-f_stepper.setMaxSpeed(T_Speed); 
-f_stepper.setAcceleration(Accel);
-pinMode(F_ENABLE_PIN, OUTPUT);
-  Serial.println("Focus Motor .............. ENABLED");
-
-steppers.addStepper(s_stepper);
-steppers.addStepper(p_stepper);
-steppers.addStepper(t_stepper);
-steppers.addStepper(f_stepper);
+enmotors();
 
   Serial.println("Motor Setup .............. PASS");
 
@@ -272,8 +247,7 @@ void loop() {
   }
   lcdref = 0;
 }
-
-
+ 
 
 //Sorts which page is current and send draw command
 void pgsort(){
@@ -516,7 +490,12 @@ void bclick(){
         steppers.runSpeedToPosition();
         delay(1000);
       }
-      steppers.moveTo(bpositions);
+     s_stepper.setMaxSpeed((bpositions[0] - apositions[0])/T_Speed);
+     s_stepper.setAcceleration(S_speed/2);
+     s_stepper.moveTo(bposition[0]);
+     
+     
+     steppers.moveTo(bpositions);
       steppers.runSpeedToPosition();
       steppers.moveTo(cpositions);
       steppers.runSpeedToPosition();
